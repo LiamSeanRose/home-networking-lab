@@ -22,12 +22,12 @@ variable "vm_count" {
 
 variable "vm_memory" {
   type    = number
-  default = 2048
+  default = 8192
 }
 
 variable "vm_cores" {
   type    = number
-  default = 2
+  default = 4
 }
 
 variable "template_id" {
