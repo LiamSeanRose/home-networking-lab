@@ -1,0 +1,41 @@
+# testbed.yaml — pyATS inventory for the EVPN fabric
+
+testbed:
+  name: evpn-fabric
+  credentials:
+    default:
+      username: "%ENV{NAPALM_USERNAME}"
+      password: "%ENV{NAPALM_PASSWORD}"
+    enable:
+      password: "%ENV{NAPALM_PASSWORD}"
+
+devices:
+  spine1:
+    os: eos
+    type: router
+    connections:
+      cli:
+        protocol: ssh
+        ip: 172.20.20.11
+    custom:
+      role: spine
+
+  leaf1:
+    os: eos
+    type: router
+    connections:
+      cli:
+        protocol: ssh
+        ip: 172.20.20.21
+    custom:
+      role: leaf
+
+  leaf2:
+    os: eos
+    type: router
+    connections:
+      cli:
+        protocol: ssh
+        ip: 172.20.20.22
+    custom:
+      role: leaf
