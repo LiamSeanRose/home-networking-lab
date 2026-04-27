@@ -16,7 +16,7 @@ A fully virtualized, automated, and security-hardened home networking lab built 
 - [x] **Phase 1** — Infrastructure Setup (Proxmox + Terraform)
 - [x] **Phase 2** — Network Topology (Containerlab + VXLAN-EVPN) — see [`phase2/README.md`](phase2/README.md)
 - [x] **Phase 3** — Automation (NAPALM + pyATS) — see [`phase3/README.md`](phase3/README.md)
-- [ ] **Phase 4** — Security & ZTNA (Zeek + ELK + Tailscale)
+- [x] **Phase 4** — Security & Observability (Zeek + ELK + Tailscale) — see [`phase4/README.md`](phase4/README.md)
 
 ## Phase 1 Usage
 
