@@ -9,3 +9,14 @@ terraform.tfstate.backup
 # Secrets
 *.pem
 *.key
+.env
+
+# Containerlab runtime directory (generated on every deploy)
+clab-*/
+*.clab.yml.bak
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/

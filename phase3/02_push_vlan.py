@@ -1,5 +1,5 @@
 """
-02_push_vlan.py — Push a new VLAN + VNI mapping to both leaves via NAPALM.
+02_push_vlan.py: Push a new VLAN + VNI mapping to both leaves via NAPALM.
 
 Uses the stage-diff-commit pattern:
   1. Load candidate config on each device
@@ -27,7 +27,7 @@ NEW_VNI = 10200
 VLAN_NAME = "Tenant_B"
 RT = f"1:{NEW_VNI}"  # route target
 
-# --- Inventory — leaves only; spine doesn't host VLANs ------------------
+# --- Inventory: leaves only, spine doesn't host VLANs ------------------
 LEAVES = [
     {"name": "leaf1", "hostname": "172.20.20.21", "loopback": "10.0.0.11", "asn": 65001},
     {"name": "leaf2", "hostname": "172.20.20.22", "loopback": "10.0.0.12", "asn": 65002},
@@ -94,7 +94,7 @@ def commit_or_discard(name, device, approved):
 
 def main():
     if not USERNAME or not PASSWORD:
-        print("❌ Missing NAPALM_USERNAME or NAPALM_PASSWORD in .env")
+        print("ERROR: missing NAPALM_USERNAME or NAPALM_PASSWORD in .env")
         sys.exit(1)
 
     print(f"Staging VLAN {NEW_VLAN} / VNI {NEW_VNI} on {len(LEAVES)} leaves...\n")
@@ -112,13 +112,13 @@ def main():
             any_errors = True
             continue
         if not diff.strip():
-            print("  (no changes — already configured)")
+            print("  (no changes, already configured)")
         else:
             print(diff)
         print()
 
     if any_errors:
-        print("❌ Errors occurred during staging. Aborting.")
+        print("ERROR: staging failed on at least one leaf. Discarding and aborting.")
         # Clean up any open connections that did succeed
         for name, device, diff, error in staged:
             if device:
@@ -147,11 +147,11 @@ def main():
     print()
     for name, status, error in results:
         if error:
-            print(f"{name}: ❌ {status} — {error}")
+            print(f"{name}: {status.upper()} - {error}")
         elif status == "committed":
-            print(f"{name}: ✅ committed")
+            print(f"{name}: committed")
         else:
-            print(f"{name}: ⏸  discarded")
+            print(f"{name}: discarded")
 
 
 if __name__ == "__main__":

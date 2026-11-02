@@ -1,4 +1,4 @@
-# testbed.yaml — pyATS inventory for the EVPN fabric
+# testbed.yaml: pyATS inventory for the EVPN fabric
 
 testbed:
   name: evpn-fabric

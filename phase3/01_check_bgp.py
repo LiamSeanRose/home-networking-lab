@@ -1,5 +1,5 @@
 """
-01_check_bgp.py — Read BGP neighbor state across the whole fabric via NAPALM.
+01_check_bgp.py: Read BGP neighbor state across the whole fabric via NAPALM.
 
 Usage:
     python 01_check_bgp.py
@@ -15,7 +15,7 @@ load_dotenv()
 USERNAME = os.getenv("NAPALM_USERNAME")
 PASSWORD = os.getenv("NAPALM_PASSWORD")
 
-# Fabric inventory — hostname and management IP for each router
+# Fabric inventory: hostname and management IP for each router
 # In a bigger project this would live in a YAML file, not hardcoded.
 DEVICES = [
     {"name": "spine1", "hostname": "172.20.20.11"},
@@ -32,7 +32,7 @@ def fetch_bgp(device_info):
     # Get the Arista EOS driver class from NAPALM
     driver = get_network_driver("eos")
 
-    # Instantiate a device object — this does NOT connect yet
+    # Instantiate a device object. This does NOT connect yet
     device = driver(
         hostname=hostname,
         username=USERNAME,
@@ -89,7 +89,7 @@ def print_bgp_table(results):
 
 def main():
     if not USERNAME or not PASSWORD:
-        print("❌ Missing NAPALM_USERNAME or NAPALM_PASSWORD in .env")
+        print("ERROR: missing NAPALM_USERNAME or NAPALM_PASSWORD in .env")
         return
 
     print(f"Querying {len(DEVICES)} devices in parallel...")

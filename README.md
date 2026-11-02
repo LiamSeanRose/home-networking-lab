@@ -1,59 +1,92 @@
 # Home Networking Lab
 
-A fully virtualized, automated, and security-hardened home networking lab built on a single consumer PC. Designed to spin up and tear down on demand, leaving the daily-use environment untouched.
+A virtualized NetDevOps lab that runs on one consumer PC. Terraform builds the lab VM on Proxmox, Containerlab runs a VXLAN-EVPN spine-leaf fabric on Arista cEOS inside it, Python (NAPALM + pyATS) configures and tests the fabric, and Zeek + ELK watch the traffic. Tailscale gives remote access without opening any ports. The whole thing can be torn down and rebuilt from this repo.
 
-## Architecture
+The full build, start to finish, is in [`docs/LAB-GUIDE.md`](docs/LAB-GUIDE.md). Each phase folder also has its own README.
 
-- **Hypervisor:** Proxmox VE 9.1 (Debian 13 Trixie)
-- **Infrastructure as Code:** Terraform with the bpg/proxmox provider
-- **VM Provisioning:** Ubuntu 24.04 cloud-init templates (customized with `virt-customize`)
-- **Network Topology:** Containerlab running Arista cEOS 4.36 — 1 spine, 2 leaves
-- **Upcoming — Automation:** Python + NAPALM + Cisco pyATS for vendor-agnostic config and testing
-- **Upcoming — Security:** Zeek + ELK stack for NDR; Tailscale for zero-trust access
+## Stack
 
-## Roadmap
+| Layer | Tool | Version used |
+|---|---|---|
+| Hypervisor | Proxmox VE | 9.1.7 (Debian 13 Trixie) |
+| VM provisioning | Terraform + `bpg/proxmox` provider | Terraform 1.5+, provider 0.60+ |
+| Lab VM | Ubuntu cloud image with cloud-init | 24.04 LTS |
+| Fabric | Containerlab + Arista cEOS-lab | Containerlab 0.74, cEOS 4.36.0F |
+| Automation | Python, NAPALM, pyATS/Genie, pytest | Python 3.12, NAPALM 5.1, pyATS 26.3 |
+| Sensor | Zeek | 8.x |
+| Logs | Filebeat, Elasticsearch, Kibana | 8.x, 8.15.0, 8.15.0 |
+| Remote access | Tailscale | free personal plan |
 
-- [x] **Phase 1** — Infrastructure Setup (Proxmox + Terraform)
-- [x] **Phase 2** — Network Topology (Containerlab + VXLAN-EVPN) — see [`phase2/README.md`](phase2/README.md)
-- [x] **Phase 3** — Automation (NAPALM + pyATS) — see [`phase3/README.md`](phase3/README.md)
-- [x] **Phase 4** — Security & Observability (Zeek + ELK + Tailscale) — see [`phase4/README.md`](phase4/README.md)
+## Phases
 
-## Phase 1 Usage
+- [x] Phase 1: Infrastructure. Proxmox host, Ubuntu cloud-init template, Terraform VM pipeline. Files are in the repo root.
+- [x] Phase 2: Network topology. 1 spine, 2 leaves, eBGP underlay, iBGP EVPN overlay, VXLAN VNI 10100. See [`phase2/`](phase2/README.md).
+- [x] Phase 3: Automation. NAPALM BGP check, NAPALM VLAN push with diff and approval, 7-test pyATS suite. See [`phase3/`](phase3/README.md).
+- [x] Phase 4: Security and observability. Zeek, Filebeat, Elasticsearch, Kibana dashboard, Tailscale. See [`phase4/`](phase4/README.md).
+
+## Quick start
+
+These assume Phase 1 is already set up (Proxmox host, template 9000, `terraform.tfvars`). The guide covers that part.
+
+From the Windows workstation:
 
 ```powershell
-.\start-lab.ps1   # Spin up the Proxmox-hosted lab VM
-.\stop-lab.ps1    # Tear it down
+.\start-lab.ps1   # terraform apply, prints the VM IP
+.\stop-lab.ps1    # terraform destroy
 ```
-
-Configuration lives in `terraform.tfvars` (gitignored — see `terraform.tfvars.example` for the expected format).
-
-## Phase 2 Usage
 
 On the lab VM:
 
 ```bash
-cd ~/evpn-lab
-sudo containerlab deploy  -t evpn-fabric.clab.yml   # bring up the spine-leaf fabric
-sudo containerlab destroy -t evpn-fabric.clab.yml   # tear it down
-sudo containerlab inspect -t evpn-fabric.clab.yml   # status check
+# Phase 2: fabric
+cd phase2
+sudo containerlab deploy -t evpn-fabric.clab.yml
+docker exec clab-evpn-fabric-host1 ping -c 3 10.100.100.12
+
+# Phase 3: automation and tests
+cd ../phase3
+python3 -m venv venv && source venv/bin/activate
+pip install napalm "pyats[full]" python-dotenv pytest
+cp .env.example .env            # cEOS default login is admin / admin
+python 01_check_bgp.py
+python 02_push_vlan.py          # adds VLAN 200 / VNI 10200
+pytest test_fabric.py -v        # 7 passed
+
+# Phase 4: observability (Zeek + Filebeat installed on the host, see guide)
+cd ../phase4
+docker compose up -d            # Elasticsearch + Kibana on :5601
 ```
 
-Captured device configs live in `phase2/configs/`.
+## Repo layout
 
-## Project Structure
-network-lab/
-├── provider.tf           # Proxmox provider + connection config
-├── variables.tf          # Input variables with defaults
-├── main.tf               # VM resource definitions
-├── terraform.tfvars      # Secrets (gitignored)
-├── start-lab.ps1         # Convenience: spin up Proxmox VM
-├── stop-lab.ps1          # Convenience: tear down Proxmox VM
+```
+home-networking-lab/
+├── provider.tf, variables.tf, main.tf   Phase 1: Terraform for the lab VM
+├── terraform.tfvars.example             token format (real tfvars is gitignored)
+├── start-lab.ps1, stop-lab.ps1          apply / destroy wrappers
 ├── phase2/
-│   ├── evpn-fabric.clab.yml
-│   ├── configs/          # spine1.cfg, leaf1.cfg, leaf2.cfg
-│   └── README.md         # Phase 2 status + lessons
-└── .gitignore
+│   ├── evpn-fabric.clab.yml             Containerlab topology
+│   ├── configs/                         startup configs for spine1, leaf1, leaf2
+│   └── containerlab-evpn.service        systemd unit that redeploys the fabric on boot
+├── phase3/
+│   ├── 01_check_bgp.py                  BGP table across the fabric (NAPALM)
+│   ├── 02_push_vlan.py                  stage, diff, approve, commit (NAPALM)
+│   ├── testbed.yaml                     pyATS inventory
+│   └── test_fabric.py                   pytest suite
+├── phase4/
+│   ├── docker-compose.yml               Elasticsearch + Kibana
+│   ├── filebeat.yml                     Zeek module config for Filebeat
+│   └── phase4-dashboard.png
+└── docs/
+    └── LAB-GUIDE.md                     full build guide, all four phases
+```
 
-## Notes
+## Hardware
 
-Built and documented summer 2026 as a NetDevOps learning project.
+Host PC: 32 GB RAM, RTX 3070, dedicated NVMe for Proxmox. The lab VM gets 12 GB and 6 vCPU, which is enough for all four phases running at once. Phases 2 and 3 alone fit in 8 GB.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+Built by Liam Rose, April 2026.

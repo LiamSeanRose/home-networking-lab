@@ -1,20 +1,20 @@
-# Phase 4 — Security & Observability (Zeek + ELK + Tailscale)
+# Phase 4: Security and observability (Zeek + ELK + Tailscale)
 
-Network observability and zero-trust remote access on top of the EVPN fabric. Three independent components compose into a complete monitoring + access stack:
+Monitoring and remote access on top of the EVPN fabric. Three separate pieces:
 
-- **Zeek** — passive network sensor producing structured JSON logs of every connection observed on the lab VM
-- **ELK Stack** (Elasticsearch + Filebeat + Kibana) — log ingestion, indexing, and visualization
-- **Tailscale** — zero-trust mesh VPN providing encrypted remote access from any network
+- Zeek, a passive sensor on the lab VM that writes JSON logs for every connection it sees
+- Filebeat, Elasticsearch and Kibana, which ship, index and chart those logs
+- Tailscale, a WireGuard mesh VPN for getting to the lab from anywhere without port forwarding
 
 ## Architecture
 
 ```mermaid
 graph LR
-  Containers[Containerlab Fabric<br/>cEOS routers + Alpine hosts]
+  Containers[Containerlab fabric<br/>cEOS routers + Alpine hosts]
   Bridge[Linux interfaces<br/>clab-mgmt + veth pairs]
-  Zeek[Zeek 8.1<br/>JSON logs]
+  Zeek[Zeek 8<br/>JSON logs]
   Filebeat[Filebeat<br/>Zeek module]
-  ES[(Elasticsearch 8.15<br/>localhost:9200)]
+  ES[(Elasticsearch 8.15<br/>127.0.0.1:9200)]
   Kibana[Kibana 8.15<br/>port 5601]
   TS[Tailscale<br/>WireGuard mesh]
   Remote[Remote devices<br/>laptop, phone]
@@ -35,47 +35,54 @@ graph LR
   class TS,Remote access
 ```
 
-## Component 1 — Zeek
+## Files
 
-Zeek monitors all network interfaces on the lab VM (`interface=any` in `node.cfg`) and produces structured JSON logs in `/opt/zeek/logs/current/`. JSON output is enabled via `@load policy/tuning/json-logs.zeek` in `local.zeek`.
+- `docker-compose.yml`: Elasticsearch and Kibana 8.15.0. On the lab VM it lives in `~/elk-stack/`.
+- `filebeat.yml`: goes in `/etc/filebeat/filebeat.yml`. Enables the Zeek module for conn, dns, notice, weird and capture_loss logs.
+- `phase4-dashboard.png`: the Kibana dashboard.
 
-Logs produced include:
-- `conn.log` — every TCP/UDP/ICMP connection summarized
-- `dns.log` — every DNS query and response
-- `weird.log` — protocol anomalies (encapsulated VXLAN traffic generates entries here, since Zeek's default decoder doesn't auto-parse VXLAN inner packets)
-- `notice.log` — security-relevant events
-- `capture_loss.log` — packet capture loss tracking
+![Phase 4 Kibana dashboard](phase4-dashboard.png)
 
-Started as a service via `zeekctl deploy` and kept running across reboots.
+## Zeek
 
-## Component 2 — ELK Stack
+Installed from the openSUSE Build Service repo for Ubuntu 24.04, so it lives in `/opt/zeek`. Two config changes:
 
-Deployed via Docker Compose at `/home/labadmin/elk-stack/docker-compose.yml`:
-![Phase 4 Kibana Dashboard](phase4-dashboard.png)
-- **Elasticsearch 8.15** — bound to `127.0.0.1:9200` for safety (security off in single-node config), 1 GiB JVM heap, persistent named volume for data
-- **Kibana 8.15** — bound to `0.0.0.0:5601` so reachable from LAN and over Tailscale
-- **Filebeat 8.x** — installed on the host (not Docker), Zeek module enabled with custom paths pointing at `/opt/zeek/logs/current/`
+- `/opt/zeek/etc/node.cfg`: `interface=any`, so it captures on every interface on the VM
+- `/opt/zeek/share/zeek/site/local.zeek`: `@load policy/tuning/json-logs.zeek` at the bottom, so logs are JSON instead of TSV
 
-The Kibana dashboard `Network Observability — Phase 4` includes:
-- Connection volume over time (line chart)
-- Top destination IPs (bar chart) — surfaces "top talkers" on the network
-- Protocol distribution (pie chart) — TCP/UDP ratio
-- DNS query volume over time (line chart, filtered by `event.dataset: zeek.dns`)
+Started with `sudo /opt/zeek/bin/zeekctl deploy`. Logs land in `/opt/zeek/logs/current/`:
 
-## Component 3 — Tailscale
+- `conn.log`: every TCP, UDP and ICMP flow
+- `dns.log`: DNS queries and answers
+- `weird.log`: protocol oddities. The VXLAN traffic between leaves shows up here, because Zeek's default config doesn't decode the inner packets.
+- `notice.log`: security notices
+- `capture_loss.log`: packet capture loss
 
-Installed on the lab VM via the official one-liner. Authenticated via GitHub OAuth into a personal tailnet. The lab VM has a permanent Tailscale IP (`100.x.y.z` in CGNAT space) reachable from any other device on the same tailnet — laptop, phone, or any other endpoint — regardless of physical network.
+## Elasticsearch, Kibana and Filebeat
 
-Use cases demonstrated:
-- SSH to lab VM over cellular network from a laptop
-- Browse Kibana dashboard from a phone on cellular data
-- All traffic end-to-end encrypted via WireGuard
+- Elasticsearch runs single node with security off, so it is bound to `127.0.0.1:9200` only. Heap is fixed at 1 GB. Data is in a named volume.
+- Kibana is bound to `0.0.0.0:5601` so it's reachable from the LAN and over Tailscale.
+- Filebeat runs on the host, not in Docker, because it needs to read `/opt/zeek/logs/current/` directly. After writing the config, `sudo filebeat setup --modules zeek` loads the index templates, ingest pipelines and stock dashboards once, then `sudo systemctl enable --now filebeat`.
 
-Replaces traditional port-forwarding + dynamic DNS or full-tunnel VPN setups with identity-based access.
+The dashboard "Network Observability - Phase 4" has four Lens panels:
 
-## Bridge name reservation
+- connections over time (line, count of records over `@timestamp`)
+- top destination IPs (horizontal bar, top 10 `destination.ip`)
+- protocol split (pie, `network.transport`)
+- DNS queries over time (line, filtered on `event.dataset : "zeek.dns"`)
 
-To make Zeek and other tools predictable, the Containerlab management bridge is now pinned to a stable name. In `evpn-fabric.clab.yml`:
+## Tailscale
+
+Installed with the official script and joined to a personal tailnet with GitHub sign-in. The VM gets a fixed 100.x.y.z address that any device on the same tailnet can reach. I tested:
+
+- SSH to the lab VM from a laptop on a phone hotspot
+- Kibana from a phone on cellular data
+
+Traffic is end-to-end WireGuard. Nothing is forwarded on the home router.
+
+## Management bridge name
+
+Zeek and any other host tool need a predictable interface name, so the topology pins the Containerlab management bridge:
 
 ```yaml
 mgmt:
@@ -84,22 +91,28 @@ mgmt:
   ipv4-subnet: 172.20.20.0/24
 ```
 
-Without this, Containerlab generates a random bridge name (`br-27fc9a195e28`) on every redeploy, which would break any tool that referenced it.
+Without it Containerlab makes a new `br-<random>` bridge on every deploy.
 
-## Resource requirements
+## Resources
 
-The full Phase 4 stack requires more memory than Phases 1-3:
-- cEOS containers: ~4 GiB
-- Elasticsearch: ~1.5 GiB (1 GiB heap + overhead)
-- Kibana: ~500 MiB
-- Zeek + Filebeat + Tailscale: <500 MiB
+| Component | Memory |
+|---|---|
+| 3 cEOS containers | about 4 GB |
+| Elasticsearch | about 1.5 GB (1 GB heap plus overhead) |
+| Kibana | about 500 MB |
+| Zeek, Filebeat, Tailscale | under 500 MB together |
 
-The lab VM was resized from 8 GiB / 4 cores to **12 GiB / 6 cores** via Terraform (in-place change, no recreation). This was a one-line Terraform diff demonstrating the value of IaC: capacity changes are reproducible and reviewable.
+I resized the lab VM from 8 GB / 4 cores to 12 GB / 6 cores for this phase. It was a two-line change in `variables.tf`, and `terraform plan` showed `0 to add, 1 to change, 0 to destroy`, so the VM was updated in place.
+
+## Security notes
+
+Elasticsearch has no authentication here. That's fine on a single VM where it only listens on localhost. Kibana, on the other hand, listens on every interface and also has no login. On a shared network such as a school lab, either bind Kibana to `127.0.0.1` and reach it over Tailscale or an SSH tunnel, or turn on `xpack.security` and set passwords.
 
 ## Lessons learned
 
-- **Zeek's default capture interface choice matters.** Pointing at the management bridge missed all data-plane traffic, since inter-container links use direct veth pairs. `interface=any` captures everything regardless of topology.
-- **VXLAN encapsulation hides inner traffic from default Zeek configs.** Host-to-host VXLAN traffic between leaves is logged at the outer (UDP/4789) level, not the inner (10.100.100.x) level. Decoding inner VXLAN payloads requires explicit Zeek configuration; out of scope for this lab.
-- **Filebeat needs root or zeek-group membership** to read Zeek logs (`/opt/zeek/logs/current/` is `drwxr-sr-x root:zeek`). Default Filebeat install runs as root, which works. Non-root deployments would need `usermod -a -G zeek filebeat`.
-- **Elasticsearch in single-node mode requires 0 replicas** in the Filebeat template settings — otherwise indices stay yellow forever waiting for replica shards that can never be allocated.
-- **Tailscale's free tier is more than sufficient for a homelab** — 100 devices, no time limits, all features. The login.tailscale.com admin console makes device management trivial.
+- Zeek on the management bridge missed all the data plane traffic. Containerlab wires the fabric links as direct veth pairs, so they never touch the bridge. `interface=any` catches both.
+- Host-to-host traffic across the overlay shows up as outer UDP/4789 flows between the leaf loopbacks, not as 10.100.100.x conversations. Decoding the inner packets needs extra Zeek config, which I left out of scope.
+- Zeek pulls in postfix as a dependency. Pick "No configuration" in the install dialog.
+- `/opt/zeek/logs/current/` is `root:zeek` with mode `drwxr-sr-x`. Filebeat runs as root by default so it can read it. A non-root Filebeat would need `usermod -a -G zeek filebeat`.
+- A single-node Elasticsearch can't place replica shards, so indices stay yellow forever unless the template sets `index.number_of_replicas: 0`.
+- Everything that joins the tailnet has to sign in with the same identity provider. A device signed in with Google ends up in a different tailnet from one signed in with GitHub.

@@ -1,11 +1,14 @@
 """
-test_fabric.py — Network health tests for the EVPN fabric.
+test_fabric.py: Network health tests for the EVPN fabric.
 
 Run with:
     pytest test_fabric.py -v
 
 Each test asserts a specific property of the network. All tests run against
 a live fabric described in testbed.yaml.
+
+Order matters: the VNI 10200 test only passes after 02_push_vlan.py has been
+run and committed. On a fresh deploy expect 6 passed, 1 failed until then.
 """
 
 import os
@@ -39,10 +42,17 @@ def fabric():
 # --- Helper functions -----------------------------------------------------
 
 def count_established_bgp(device, cmd="show ip bgp summary"):
-    """Count BGP neighbors in Established state from raw CLI output."""
+    """Count BGP neighbors in Established state from raw CLI output.
+
+    'Estab(NotNegotiated)' is NOT counted. That state means the TCP session
+    is up but the address family was never activated, so no routes move.
+    Counting it as healthy would hide exactly the bug this test should catch.
+    """
     output = device.execute(cmd)
-    # Each data row has a peer IP, then columns; 'Estab' in the state column
-    return sum(1 for line in output.splitlines() if "Estab" in line)
+    return sum(
+        1 for line in output.splitlines()
+        if "Estab" in line and "NotNegotiated" not in line
+    )
 
 
 def get_vxlan_vnis(device):
@@ -110,7 +120,7 @@ def test_vxlan_vni_10100_on_both_leaves(fabric):
 
 
 def test_vxlan_vni_10200_on_both_leaves(fabric):
-    """VNI 10200 (Tenant_B) should be configured — this tests the VLAN we pushed earlier."""
+    """VNI 10200 (Tenant_B) should be configured. This checks the VLAN pushed by 02_push_vlan.py."""
     for name in ["leaf1", "leaf2"]:
         device = fabric.devices[name]
         vnis = get_vxlan_vnis(device)
@@ -118,7 +128,7 @@ def test_vxlan_vni_10200_on_both_leaves(fabric):
 
 
 def test_spine_has_no_vxlan(fabric):
-    """Spine should NOT have VXLAN VNIs — it only routes, never encapsulates."""
+    """Spine should NOT have VXLAN VNIs. It only routes and never encapsulates."""
     spine = fabric.devices["spine1"]
     vnis = get_vxlan_vnis(spine)
     assert vnis == [], f"spine1 should have no VNIs, has {vnis}"

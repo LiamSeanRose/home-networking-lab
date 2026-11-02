@@ -1,24 +1,34 @@
 name: evpn-fabric
 
+# Pin the management bridge name so Zeek and other host tools can rely on it.
+# Without this, Containerlab picks a random br-xxxxxxxxxxxx name on every deploy.
+mgmt:
+  network: clab-mgmt
+  bridge: clab-mgmt
+  ipv4-subnet: 172.20.20.0/24
+
 topology:
   kinds:
     ceos:
       image: ceos:4.36.0F
     linux:
-      image: alpine:latest
+      image: alpine:3.24
 
   nodes:
     spine1:
       kind: ceos
       mgmt-ipv4: 172.20.20.11
+      startup-config: configs/spine1.cfg
 
     leaf1:
       kind: ceos
       mgmt-ipv4: 172.20.20.21
+      startup-config: configs/leaf1.cfg
 
     leaf2:
       kind: ceos
       mgmt-ipv4: 172.20.20.22
+      startup-config: configs/leaf2.cfg
 
     host1:
       kind: linux

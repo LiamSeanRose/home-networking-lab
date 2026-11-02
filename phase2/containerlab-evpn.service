@@ -1,0 +1,17 @@
+[Unit]
+Description=Containerlab EVPN Fabric Auto-Deploy
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/labadmin/evpn-lab
+ExecStartPre=-/usr/bin/containerlab destroy -t /home/labadmin/evpn-lab/evpn-fabric.clab.yml --cleanup
+ExecStart=/usr/bin/containerlab deploy -t /home/labadmin/evpn-lab/evpn-fabric.clab.yml
+ExecStop=/usr/bin/containerlab destroy -t /home/labadmin/evpn-lab/evpn-fabric.clab.yml --cleanup
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
