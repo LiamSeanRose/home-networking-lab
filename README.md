@@ -4,9 +4,9 @@ This is a NetDevOps lab I built on one regular PC. I use Terraform to build the 
 
 ## Why I built this
 
-At the start of the summer I was doing alright in school, but I felt like what I actually knew was pretty limited. I knew I could do better if I really tried to learn, so I picked a project that wouldn't be taught in class: tools that make a real difference at work and that not many people my age have used. AI can already do a lot in networking, so I wanted to learn the newer technologies and skills that will still matter. I also wanted to do it as cheaply as possible, which is why it all runs on one PC.
+I built the lab because I was disappointed with my progress. In terms of academics I was doing alright in the more recent years, but I felt my knowledge was so limited, so I wanted to overachieve. It was the start of summer and I was okay with how my exams went, but I knew I could do better if I just tried and really tried to learn. So I did this lab to start that. Doing this lab made all the other projects possible. It was like stairs, I just wanted to take another step until I was better, better than my previous self.
 
-This lab was my first step. Every project I've done since has been another step up from it.
+The best way to learn is to try new things and commit to projects that I knew wouldn't be taught in class or school, stuff that can make an actual real difference in life and things like work. I was thinking about what skills will actually help me in the future now that AI is so strong and can do so much in the networking field. I wanted to learn new upcoming technologies that not many people know. Of course I wanted to do this as cheaply as possible, but it turned out pretty well I think.
 
 ## Build guide
 
