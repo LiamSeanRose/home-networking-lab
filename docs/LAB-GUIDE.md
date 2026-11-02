@@ -4,7 +4,7 @@ Liam Rose, April 2026
 
 Repository: https://github.com/LiamSeanRose/home-networking-lab
 
-This is the full record of how I built the lab, all four phases in one place. I wrote it so I could rebuild everything from a blank PC, and so someone else could too. Every config file mentioned here is in the repo.
+This is the full record of how I built the lab, all four phases in one place. I built it over the summer because I wanted to learn things that weren't being taught in class, like infrastructure as code, EVPN, automation and monitoring, and do it as cheaply as I could on one PC. I wrote this guide so I could rebuild everything from a blank PC, and so someone else could too. Every config file mentioned here is in the repo.
 
 ## Contents
 
@@ -33,13 +33,13 @@ Each phase runs on top of the one before it.
 The flow from code to running network:
 
 ```
-Windows workstation              Proxmox host (bare metal)         lab-vm-1 (Ubuntu 24.04)
-───────────────────              ─────────────────────────         ───────────────────────
-terraform apply  ──API token──>  clone template 9000  ──boots──>  Docker
-                                 cloud-init: user, SSH key        ├─ Containerlab: spine1, leaf1, leaf2, host1, host2
-                                                                  ├─ Elasticsearch + Kibana (Docker Compose)
-                                                                  ├─ Zeek + Filebeat (host services)
-                                                                  └─ Tailscale
+Windows workstation          Proxmox host (bare metal)    lab-vm-1 (Ubuntu 24.04)
+───────────────────          ─────────────────────────    ───────────────────────
+terraform apply ─API token─> clone template 9000 ─boots─> Docker
+                             cloud-init: user, SSH key    ├─ Containerlab: 3 cEOS + 2 hosts
+                                                          ├─ Elasticsearch + Kibana (Compose)
+                                                          ├─ Zeek + Filebeat (host services)
+                                                          └─ Tailscale
 ```
 
 ## 2. Hardware and addressing
@@ -62,7 +62,7 @@ How the lab VM grew:
 | Phase 2 | 8 GB | 4 | 40 GB |
 | Phase 4 | 12 GB | 6 | 40 GB |
 
-Each resize was a variable change and `terraform apply`. The VM was never recreated.
+Each resize was just a variable change and `terraform apply`. I never had to recreate the VM.
 
 Fabric addressing:
 
@@ -78,7 +78,7 @@ Fabric addressing:
 
 ## 3. Phase 1: Proxmox and Terraform
 
-Goal: create and destroy the lab VM from code.
+Goal: create and destroy the lab VM from code. I wanted to be able to wreck the lab and get it back in under a minute, so I never had to be careful with it.
 
 ### 3.1 Install Proxmox VE
 
@@ -233,7 +233,7 @@ The bpg provider changes memory, CPU and disk in place, though the VM may reboot
 
 ## 4. Phase 2: Containerlab and VXLAN-EVPN
 
-Goal: a spine-leaf fabric running VXLAN-EVPN on real Arista EOS, deployed from a YAML file.
+Goal: a spine-leaf fabric running VXLAN-EVPN on real Arista EOS, deployed from a YAML file. This is the kind of fabric data centers actually run, and it's not something I'd get to touch in a school lab.
 
 ### 4.1 Resize to 8 GB / 4 cores / 40 GB
 
@@ -590,7 +590,7 @@ Copy the topology, configs and README into `phase2/` in the repo. Before committ
 
 ## 5. Phase 3: NAPALM and pyATS
 
-Goal: stop checking the fabric by SSHing into each box and reading output. Use scripts and tests for that.
+Goal: stop checking the fabric by SSHing into each box and reading output. I wanted scripts and tests to do that for me, so I'd know right away if something broke.
 
 ### 5.1 Python environment
 
@@ -711,7 +711,7 @@ The last test makes its own traffic before it checks anything, so it tests MAC l
 
 ## 6. Phase 4: Zeek, ELK and Tailscale
 
-Goal: see the traffic on the lab, and reach the lab from anywhere without opening ports.
+Goal: see the traffic on the lab, and reach the lab from anywhere without opening ports on my home router.
 
 ### 6.1 Resize to 12 GB / 6 cores
 
@@ -735,7 +735,7 @@ source ~/.bashrc
 zeek --version
 ```
 
-Zeek depends on postfix, which opens a config dialog during install. Choose "No configuration". Email alerts aren't used.
+Zeek depends on postfix, which opens a config dialog during install. Choose "No configuration". I don't use email alerts.
 
 Config:
 
@@ -854,7 +854,7 @@ Menu → Analytics → Dashboard → Create dashboard → Create visualization. 
 | Protocol split | Pie | slice by `network.transport` |
 | DNS queries over time | Line | X `@timestamp`, Y count, filter `event.dataset : "zeek.dns"` |
 
-Set the time range to the last hour and save it as "Network Observability - Phase 4". The screenshot is `phase4/phase4-dashboard.png`.
+Set the time range to the last hour and save it as "Network Observability - Phase 4". My screenshot of it is `phase4/phase4-dashboard.png`.
 
 ### 6.6 Tailscale
 

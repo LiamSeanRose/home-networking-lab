@@ -1,8 +1,16 @@
 # Home Networking Lab
 
-A virtualized NetDevOps lab that runs on one consumer PC. Terraform builds the lab VM on Proxmox, Containerlab runs a VXLAN-EVPN spine-leaf fabric on Arista cEOS inside it, Python (NAPALM + pyATS) configures and tests the fabric, and Zeek + ELK watch the traffic. Tailscale gives remote access without opening any ports. The whole thing can be torn down and rebuilt from this repo.
+This is a NetDevOps lab I built on one regular PC. I use Terraform to build the lab VM on Proxmox. Inside that VM, Containerlab runs a VXLAN-EVPN spine-leaf fabric on Arista cEOS. I configure and test the fabric with Python (NAPALM and pyATS), and Zeek and ELK watch the traffic. I connect to it remotely through Tailscale, so no ports are open. I can tear the whole thing down and rebuild it from this repo.
 
-The full build, start to finish, is in [`docs/LAB-GUIDE.md`](docs/LAB-GUIDE.md). Each phase folder also has its own README.
+## Why I built this
+
+At the start of the summer I was doing alright in school, but I felt like what I actually knew was pretty limited. I knew I could do better if I really tried to learn, so I picked a project that wouldn't be taught in class: tools that make a real difference at work and that not many people my age have used. AI can already do a lot in networking, so I wanted to learn the newer technologies and skills that will still matter. I also wanted to do it as cheaply as possible, which is why it all runs on one PC.
+
+This lab was my first step. Every project I've done since has been another step up from it.
+
+## Build guide
+
+If you want to build it yourself, the full guide is in [`docs/LAB-GUIDE.md`](docs/LAB-GUIDE.md). Each phase folder also has its own README.
 
 ## Stack
 
@@ -26,7 +34,7 @@ The full build, start to finish, is in [`docs/LAB-GUIDE.md`](docs/LAB-GUIDE.md).
 
 ## Quick start
 
-These assume Phase 1 is already set up (Proxmox host, template 9000, `terraform.tfvars`). The guide covers that part.
+These commands only work if Phase 1 is already done (Proxmox host, template 9000, `terraform.tfvars`). The guide walks through that part.
 
 From the Windows workstation:
 
@@ -83,7 +91,7 @@ home-networking-lab/
 
 ## Hardware
 
-Host PC: 32 GB RAM, RTX 3070, dedicated NVMe for Proxmox. The lab VM gets 12 GB and 6 vCPU, which is enough for all four phases running at once. Phases 2 and 3 alone fit in 8 GB.
+My host PC has 32 GB of RAM, an RTX 3070, and its own NVMe drive for Proxmox. I give the lab VM 12 GB and 6 vCPU, which is enough to run all four phases at once. If you only need Phases 2 and 3, 8 GB is enough.
 
 ## License
 

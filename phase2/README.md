@@ -1,6 +1,6 @@
 # Phase 2: Network topology (Containerlab + VXLAN-EVPN)
 
-Spine-leaf fabric on Arista cEOS containers, deployed with Containerlab on the Terraform-built Ubuntu VM. Two Alpine containers act as hosts on VLAN 100 and prove end-to-end L2 across the overlay.
+In this phase I built a spine-leaf fabric out of Arista cEOS containers and deployed it with Containerlab on the Ubuntu VM from Phase 1. I added two Alpine containers as hosts on VLAN 100 so I could prove Layer 2 traffic actually makes it end to end across the overlay.
 
 ## Topology
 
@@ -83,7 +83,7 @@ The unit expects the lab in `/home/labadmin/evpn-lab`. Change the paths if you d
 
 ## Lessons learned
 
-- cEOS-lab would not carry EVPN routes across the eBGP overlay sessions, so the standard RFC 7938 eBGP-everywhere design didn't work on this image. Using `local-as 65100 no-prepend replace-as` on the EVPN peer group makes the overlay iBGP on top of the eBGP underlay. Real fabrics use the same idea (a separate overlay ASN), so it isn't just a lab hack.
+- This was the hardest part of the whole lab. cEOS-lab would not carry EVPN routes across the eBGP overlay sessions, so the standard RFC 7938 eBGP-everywhere design didn't work on this image. Using `local-as 65100 no-prepend replace-as` on the EVPN peer group makes the overlay iBGP on top of the eBGP underlay. Real fabrics use the same idea (a separate overlay ASN), so it isn't just a lab hack.
 - `Estab(NotNegotiated)` in the BGP summary means TCP is up but the address family was never activated on one side. Almost every time it was a missing `activate` or a typo in a peer group name.
 - `next-hop-self` and next-hop-unchanged apply per address family. IPv4 needs `next-hop-self` on the spine so reflected loopbacks are reachable. EVPN needs the iBGP default (unchanged) so leaves build tunnels straight to each other and not to the spine.
 - Type-2 routes need traffic from a real host port. I first tried pinging between SVIs on the leaves, but that never put anything in the bridge MAC table on cEOS-lab, so `redistribute learned` had nothing to send. Adding the Alpine hosts on access ports fixed it, and the SVIs came out of the final configs.

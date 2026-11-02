@@ -1,6 +1,6 @@
 # Phase 3: Network automation (NAPALM + pyATS)
 
-Python scripts and a test suite for the Phase 2 fabric. NAPALM reads state and pushes config. pyATS connects to the devices and pytest asserts that the fabric is healthy. All of it runs on the lab VM, where the cEOS management IPs are reachable.
+Once the fabric worked, I wanted to stop configuring and checking it by hand. So I wrote Python scripts and a test suite for it. NAPALM reads state and pushes config. pyATS connects to the devices and pytest checks that the fabric is healthy. I run all of it on the lab VM, because that's where the cEOS management IPs are reachable.
 
 ## Files
 

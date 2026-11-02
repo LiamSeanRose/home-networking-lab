@@ -1,6 +1,6 @@
 # Phase 4: Security and observability (Zeek + ELK + Tailscale)
 
-Monitoring and remote access on top of the EVPN fabric. Three separate pieces:
+The last phase adds monitoring and remote access on top of the EVPN fabric. I wanted to actually see the traffic moving through the lab and be able to reach it from anywhere. It's three separate pieces:
 
 - Zeek, a passive sensor on the lab VM that writes JSON logs for every connection it sees
 - Filebeat, Elasticsearch and Kibana, which ship, index and chart those logs
@@ -45,12 +45,12 @@ graph LR
 
 ## Zeek
 
-Installed from the openSUSE Build Service repo for Ubuntu 24.04, so it lives in `/opt/zeek`. Two config changes:
+I installed Zeek from the openSUSE Build Service repo for Ubuntu 24.04, so it lives in `/opt/zeek`. I made two config changes:
 
 - `/opt/zeek/etc/node.cfg`: `interface=any`, so it captures on every interface on the VM
 - `/opt/zeek/share/zeek/site/local.zeek`: `@load policy/tuning/json-logs.zeek` at the bottom, so logs are JSON instead of TSV
 
-Started with `sudo /opt/zeek/bin/zeekctl deploy`. Logs land in `/opt/zeek/logs/current/`:
+Then I started it with `sudo /opt/zeek/bin/zeekctl deploy`. Logs land in `/opt/zeek/logs/current/`:
 
 - `conn.log`: every TCP, UDP and ICMP flow
 - `dns.log`: DNS queries and answers
@@ -73,7 +73,7 @@ The dashboard "Network Observability - Phase 4" has four Lens panels:
 
 ## Tailscale
 
-Installed with the official script and joined to a personal tailnet with GitHub sign-in. The VM gets a fixed 100.x.y.z address that any device on the same tailnet can reach. I tested:
+I installed Tailscale with the official script and joined the VM to my personal tailnet with GitHub sign-in. The VM gets a fixed 100.x.y.z address that any device on the same tailnet can reach. I tested:
 
 - SSH to the lab VM from a laptop on a phone hotspot
 - Kibana from a phone on cellular data
